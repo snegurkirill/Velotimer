@@ -5,3 +5,5 @@
 Открыть: https://snegurkirill.github.io/Velotimer/
 
 Всё приложение — один файл `index.html` без зависимостей и сборки. Прогресс и записи хранятся в `localStorage` браузера.
+
+Идеи и планы доработок: [BACKLOG.md](BACKLOG.md).
