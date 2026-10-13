@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1013">
+<title>Велотаймер</title>
+<style>
+  :root { box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body { margin: 0; padding: 0; font: 14px -apple-system, BlinkMacSystemFont, sans-serif; }
+  img { max-width: 100%; }
+  [hidden]:not([hidden=until-found i]) { display: none !important; }
+</style>
+<style>
+  :root {
+    --bg: #0e1013;
+    --panel: #171a1f;
+    --panel-2: #1f232a;
+    --line: #2a2f37;
+    --text: #f2f4f7;
+    --muted: #8b93a1;
+    --accent: #5aa9ff;
+    --c-warm: #5aa9ff;
+    --c-work: #ff5a4e;
+    --c-mid: #ffb23e;
+    --c-rest: #3ccf8e;
+    --c-cool: #9b8cff;
+    --cur: var(--c-warm);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100%;
+    padding-inline: 16px;
+    padding-block: 12px 24px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; color: var(--muted); letter-spacing: .02em; }
+  .total { font-variant-numeric: tabular-nums; font-size: 14px; color: var(--muted); white-space: nowrap; }
+  .total b { color: var(--text); font-weight: 600; }
+
+  .progress { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; display: flex; margin-bottom: 14px; }
+  .progress span { display: block; height: 100%; opacity: .35; border-right: 1px solid var(--bg); }
+  .progress span.done { opacity: 1; }
+  .progress span.now { opacity: 1; position: relative; overflow: hidden; }
+
+  .card {
+    background: var(--panel);
+    border-radius: 20px;
+    padding: 18px 18px 20px;
+    border-top: 6px solid var(--cur);
+    transition: border-color .3s;
+  }
+  .kind { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--bg); background: var(--cur); padding: 4px 9px; border-radius: 999px; }
+  .rep { float: right; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 3px; }
+  .rep b { color: var(--text); font-size: 18px; }
+  .stage { font-size: clamp(24px, 6vw, 34px); font-weight: 700; margin: 10px 0 0; line-height: 1.15; }
+  .clock {
+    font-size: clamp(88px, 28vw, 168px);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.03em;
+    line-height: 1;
+    margin: 10px 0 6px;
+    color: var(--cur);
+    transition: color .3s;
+  }
+  .bar { height: 10px; background: var(--panel-2); border-radius: 5px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--cur); border-radius: 5px; }
+
+  .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 16px; }
+  .m { background: var(--panel-2); border-radius: 14px; padding: 12px 14px; min-width: 0; }
+  .m small { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+  .m div { font-size: clamp(18px, 4.6vw, 24px); font-weight: 650; line-height: 1.2; hyphens: auto; -webkit-hyphens: auto; }
+  .m.wide { grid-column: 1 / -1; }
+  .cue { margin-top: 12px; font-size: 15px; line-height: 1.45; color: #d6dbe3; background: var(--panel-2);
+    border-left: 3px solid var(--cur); border-radius: 10px; padding: 10px 12px; }
+  .cue:empty { display: none; }
+
+  .next { margin-top: 12px; background: var(--panel); border-radius: 16px; padding: 14px 16px; display: flex; gap: 14px; align-items: center; }
+  .next .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .next .txt { flex: 1; min-width: 0; }
+  .next small { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .next .nm { font-size: 18px; font-weight: 650; }
+  .next .sub { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .next .dur { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .controls { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 10px; margin-top: 14px; }
+  button {
+    font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 14px; padding: 16px 10px; font-size: 16px; font-weight: 600; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  button:active { transform: scale(.98); }
+  button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { body.flash .card, body.last3 .clock { animation: none; } }
+  button.primary { background: var(--cur); color: #0b0c0e; border-color: transparent; font-size: 19px; }
+  .row2 { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .row2 button { flex: 1; padding: 11px 10px; font-size: 14px; font-weight: 500; color: var(--muted); }
+
+  .toggle { display: flex; align-items: center; gap: 10px; font-size: 15px; padding: 4px 0 14px; }
+  .toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
+  .wsel { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .wsel button { padding: 10px 8px; font-size: 14px; border-radius: 12px; color: var(--muted); line-height: 1.25; }
+  .wsel button b { display: block; font-size: 16px; color: var(--text); }
+  .wsel button.on { background: var(--text); color: var(--bg); }
+  .wsel button.on b { color: var(--bg); }
+
+  h2 { font-size: 15px; color: var(--muted); font-weight: 600; margin: 22px 0 8px; }
+  ol.plan { list-style: none; padding: 0; margin: 0; background: var(--panel); border-radius: 16px; overflow: hidden; }
+  ol.plan li { display: grid; grid-template-columns: 10px 1fr auto; gap: 12px; align-items: center;
+    padding: 10px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  ol.plan li:last-child { border-bottom: 0; }
+  ol.plan li .dot { width: 10px; height: 10px; border-radius: 50%; }
+  ol.plan li .t { min-width: 0; }
+  ol.plan li .t b { font-weight: 600; font-size: 15px; }
+  ol.plan li .t span { display: block; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  ol.plan li .d { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; }
+  ol.plan li.done { opacity: .4; }
+  ol.plan li.now { background: var(--panel-2); }
+  ol.plan li.now .t b { color: var(--cur); }
+
+  .rules { font-size: 14px; color: var(--muted); line-height: 1.5; padding-left: 18px; }
+  .finish { text-align: center; padding: 30px 10px; }
+  .finish .big { font-size: 56px; }
+
+  body.flash .card { animation: flash .6s ease-out; }
+  @keyframes flash { from { box-shadow: 0 0 0 4px var(--cur), 0 0 40px var(--cur); } to { box-shadow: none; } }
+  body.last3 .clock { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
+
+  @media (min-width: 640px) {
+    .metrics { grid-template-columns: repeat(4, 1fr); }
+    .m.wide { grid-column: span 2; }
+  }
+  details.settings { margin-top: 14px; background: var(--panel); border-radius: 16px; padding: 4px 16px; }
+  details.settings summary { cursor: pointer; padding: 12px 0; font-weight: 600; color: var(--muted); }
+
+  .log { margin-top: 12px; background: var(--panel-2); border-radius: 14px; padding: 12px 14px; }
+  .log[hidden] { display: none; }
+  .log h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--muted); }
+  .log h3 b { color: var(--text); }
+  .fields { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+  .fields label { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .05em; min-width: 0; }
+  .fields input, table.res input {
+    width: 100%; min-width: 0; font: inherit; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums;
+    color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 8px 6px; text-align: center;
+  }
+  .fields input:focus, table.res input:focus { outline: 2px solid var(--cur); outline-offset: 0; border-color: transparent; }
+  @media (max-width: 420px) {
+    .fields { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .fields label { grid-column: span 2; }
+    .fields label.w3 { grid-column: span 3; }
+  }
+
+  .tablewrap { overflow-x: auto; background: var(--panel); border-radius: 16px; }
+  table.res { border-collapse: collapse; width: 100%; min-width: 480px; font-size: 14px; }
+  table.res th, table.res td { padding: 8px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+  table.res th { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  table.res td:first-child { white-space: nowrap; }
+  table.res td.blk { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; padding-top: 14px; }
+  table.res input { font-size: 15px; padding: 6px 4px; width: 64px; }
+  .resbtns { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .resbtns button { flex: 1; padding: 11px 10px; font-size: 14px; font-weight: 500; color: var(--muted); }
+  textarea#report { width: 100%; margin-top: 10px; min-height: 140px; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+  textarea#report[hidden] { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Велотаймер</h1>
+    <div class="total"><b id="elapsed">0:00</b> / <span id="totalTime">0:00</span></div>
+  </header>
+
+  <div class="wsel" id="wsel">
+    <button data-w="1"><b>Тренировка №1</b>пиковая мощность</button>
+    <button data-w="2"><b>Тренировка №2</b>высокая мощность</button>
+  </div>
+
+  <div class="progress" id="progress"></div>
+
+  <section class="card" id="card">
+    <span class="kind" id="kind">Разминка</span>
+    <span class="rep" id="rep"></span>
+    <div class="stage" id="stage">Разминка</div>
+    <div class="clock" id="clock">10:00</div>
+    <div class="bar"><i id="bar"></i></div>
+
+    <div class="metrics">
+      <div class="m"><small>Каденс</small><div id="rpm">—</div></div>
+      <div class="m"><small>Мощность</small><div id="watts">—</div></div>
+      <div class="m"><small>Интенсивность</small><div id="rpe">—</div></div>
+      <div class="m"><small>Сопротивление</small><div id="gear">—</div></div>
+    </div>
+    <div class="cue" id="cue"></div>
+
+    <div class="log" id="log" hidden>
+      <h3>Запиши: <b id="logName"></b></h3>
+      <div class="fields">
+        <label>Уровень<input id="f-lvl" type="number" inputmode="numeric"></label>
+        <label>RPM старт<input id="f-c0" type="number" inputmode="numeric"></label>
+        <label>RPM финиш<input id="f-c1" type="number" inputmode="numeric"></label>
+        <label class="w3">Пик, Вт<input id="f-peak" type="number" inputmode="numeric"></label>
+        <label class="w3">Средняя, Вт<input id="f-avg" type="number" inputmode="numeric"></label>
+      </div>
+    </div>
+  </section>
+
+  <div class="next" id="next">
+    <span class="dot" id="nextDot"></span>
+    <div class="txt">
+      <small>Дальше</small>
+      <div class="nm" id="nextName">—</div>
+      <div class="sub" id="nextSub"></div>
+    </div>
+    <div class="dur" id="nextDur"></div>
+  </div>
+
+  <div class="controls">
+    <button id="prevBtn" aria-label="Предыдущий этап">◀︎</button>
+    <button id="playBtn" class="primary">Старт</button>
+    <button id="nextBtn" aria-label="Следующий этап">▶︎</button>
+  </div>
+  <div class="row2">
+    <button id="plusBtn">+30 сек к этапу</button>
+    <button id="resetBtn">Сбросить</button>
+  </div>
+
+  <details class="settings" id="settings">
+    <summary>Настройки</summary>
+    <label class="toggle"><input type="checkbox" id="sound" checked> Звук (сигналы на 3-2-1 и смене этапа)</label>
+    <label class="toggle"><input type="checkbox" id="voice" checked> Голосом объявлять этап</label>
+  </details>
+
+  <h2>План тренировки</h2>
+  <ol class="plan" id="plan"></ol>
+
+  <h2>Результаты</h2>
+  <div class="tablewrap">
+    <table class="res">
+      <thead><tr><th>Повтор</th><th>Уровень</th><th>Каденс старт</th><th>Каденс финиш</th><th>Пик, Вт</th><th>Средняя, Вт</th></tr></thead>
+      <tbody id="resBody"></tbody>
+    </table>
+  </div>
+  <div class="resbtns">
+    <button id="copyBtn">Скопировать отчёт</button>
+    <button id="clearBtn">Очистить записи</button>
+  </div>
+  <textarea id="report" readonly hidden></textarea>
+
+  <div id="rules"></div>
+</div>
+
+<script>
+(() => {
+  const COLORS = { warm: 'var(--c-warm)', work: 'var(--c-work)', mid: 'var(--c-mid)', rest: 'var(--c-rest)', cool: 'var(--c-cool)' };
+  const KIND_LABEL = { warm: 'Разминка', work: 'Работа', mid: 'Умеренно', rest: 'Отдых', cool: 'Заминка' };
+  let PFX = 'velotimer2.';
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(PFX + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch (e) {} },
+  };
+  const prefs = {
+    get(k, d) { try { const v = localStorage.getItem('velotimer.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('velotimer.' + k, JSON.stringify(v)); } catch (e) {} },
+  };
+
+  const REST = { rpm: '70–85 rpm', watts: '100–140 Вт или легче', rpe: 'RPE 1–2', gear: '4–5' };
+
+  const WORKOUTS = {
+    1: {
+      title: 'пиковая мощность', warmup: 600, cooldown: 420, warmRestWatts: '100–140 Вт или легче',
+      restCue: 'Лёгкое вращение педалей весь отдых.',
+      blocks: [
+        { key: 'sprint', name: 'Максимальный спринт', reps: 4, work: 6, rest: 240,
+          after: { name: 'Отдых после спринтов', dur: 300 },
+          rpm: 'плавное ускорение', watts: 'макс. контролируемая', rpe: 'RPE 9–10', gear: 'подбери, с контролем',
+          cue: 'Сидя, плавно ускоряйся. Не вставай и не раскачивай велосипед. Стопы соскальзывают или теряешь контроль — снизь каденс и усилие.' },
+        { key: 'run', name: 'Разгонный спринт', reps: 2, work: 8, rest: 240,
+          after: { name: 'Отдых после разгонных спринтов', dur: 240 },
+          rpm: '110–130 rpm', watts: 'макс. контролируемая', rpe: 'RPE 9', gear: 'подбери',
+          cue: 'Сидя. Разгоняйся до 110–130 rpm, сохраняя контроль над педалями.' },
+        { key: 'cad', name: 'Высокий каденс', reps: 3, work: 10, rest: 120, restName: 'Восстановление',
+          rpm: '120–140 rpm', watts: 'без цели по ваттам', rpe: 'RPE 5–6', gear: 'лёгкое',
+          cue: 'Быстрые ровные обороты. Если стопы соскальзывают или теряется контроль — снизь каденс.' },
+      ],
+      rules: `
+  <h2>Важно</h2>
+  <ol class="rules">
+    <li>Все спринты выполняй сидя: на обычных педалях без фиксации стоп не вставай и не раскачивай велосипед на максимальном усилии.</li>
+    <li>Время отдыха включает лёгкое вращение педалей.</li>
+    <li>Если стопы начинают соскальзывать или теряется контроль, снизь каденс и усилие.</li>
+  </ol>`,
+    },
+    2: {
+      title: 'высокая мощность', warmup: 600, cooldown: 420,
+      blocks: [
+        { key: 'sprint', name: 'Силовой спринт', reps: 5, work: 10, rest: 240,
+          rpm: 'плавное ускорение', watts: 'макс. контролируемая', rpe: 'RPE 8–9', gear: 'от 6 (52×17)',
+          cue: 'Сидя, плавно ускоряйся. Слишком легко — попробуй уровень выше, но не ценой контроля педалей.' },
+        { key: 'accel', name: 'Ускорение под сопротивлением', reps: 4, work: 15, rest: 240,
+          rpm: '80–110 rpm', watts: 'высокая, без потери контроля', rpe: 'RPE 8–9', gear: 'подбери',
+          cue: 'Мощность нарастает постепенно. Не упирайся в педали на слишком низком каденсе.' },
+        { key: 'endur', name: 'Спринтерская выносливость', reps: 3, work: 20, rest: 240,
+          rpm: '90–110 rpm', watts: 'высокая, которую удержишь', rpe: 'RPE 8–9', gear: 'подбери',
+          cue: 'Начни сдержаннее, чем в коротком спринте, чтобы не потерять мощность через несколько секунд.' },
+      ],
+      rules: `
+  <h2>Как подобрать сопротивление</h2>
+  <ol class="rules">
+    <li><b>Силовые спринты, 10 сек.</b> Начни с 6-го уровня. Проверь, насколько плавно ускоряешься сидя. Слишком легко — попробуй следующий уровень, но не ценой контроля педалей.</li>
+    <li><b>Ускорения, 15 сек.</b> Сопротивление, на котором мощность нарастает постепенно, без упора в педали на низком каденсе.</li>
+    <li><b>Интервалы, 20 сек.</b> Начинай сдержаннее, чем в коротком спринте, чтобы не потерять мощность через несколько секунд.</li>
+  </ol>
+
+  <h2>Важно</h2>
+  <ol class="rules">
+    <li>Отдых 4 минуты между повторами и между блоками.</li>
+    <li>Записывай пиковую и, если видно, среднюю мощность. Средняя показывает, насколько хорошо держишь усилие.</li>
+    <li>После первого 10-секундного спринта отправь тренеру: уровень, каденс в начале и в конце, пик и среднюю мощность.</li>
+    <li>Без фиксации стопы — только сидя, без раскачки и рывков. Если стопа соскальзывает, снижай нагрузку.</li>
+  </ol>`,
+    },
+  };
+
+  function build(w) {
+    const s = [];
+    const add = o => s.push(o);
+
+    add({ kind: 'warm', name: 'Разминка', dur: w.warmup, rpm: '80–95 rpm', watts: '100–140 Вт', rpe: 'RPE 2–3',
+      gear: '5 (52×21)', cue: 'Комфортное вращение, постепенно разогревайся.' });
+
+    for (let r = 1; r <= 3; r++) {
+      add({ kind: 'mid', name: 'Разминочное ускорение', dur: 20, rep: r, reps: 3,
+        rpm: '90–95 rpm', watts: '230–240 Вт', rpe: 'RPE 5–6', gear: '6 (52×17)',
+        cue: 'Известный ориентир: уровень 6 при 90–95 rpm даёт 230–240 Вт.' });
+      add({ kind: 'rest', name: 'Восстановление', dur: 40, rep: r, reps: 3,
+        rpm: '80–90 rpm', watts: w.warmRestWatts || '100–140 Вт', rpe: 'RPE 1–2', gear: '4–5', cue: 'Легко крутим.' });
+    }
+
+    // rest after a block's last rep is b.after if given, else the same as between its reps; the last block goes straight to cooldown
+    w.blocks.forEach((b, bi) => {
+      const lastBlock = bi === w.blocks.length - 1;
+      for (let r = 1; r <= b.reps; r++) {
+        add({ kind: 'work', name: b.name, dur: b.work, rep: r, reps: b.reps, logId: b.key + r,
+          rpm: b.rpm, watts: b.watts, rpe: b.rpe, gear: b.gear, cue: b.cue });
+        if (r < b.reps) {
+          add({ kind: 'rest', name: b.restName || 'Отдых', dur: b.rest, rep: r, reps: b.reps, ...REST,
+            cue: w.restCue || 'Очень легко. Если мощность резко падает от повтора к повтору — отдыхай дольше или закончи блок.' });
+        } else if (!lastBlock) {
+          const a = b.after || {};
+          add({ kind: 'rest', name: a.name || 'Отдых перед следующим блоком', dur: a.dur || b.rest, ...REST,
+            cue: (w.restCue ? w.restCue + ' ' : 'Очень легко. ') + 'Восстановись перед новым блоком — если не хватает, добавь +30 сек.' });
+        }
+      }
+    });
+
+    add({ kind: 'cool', name: 'Заминка', dur: w.cooldown, rpm: '75–90 rpm', watts: '80–130 Вт',
+      rpe: 'RPE 1–2', gear: '4–5', cue: 'Спокойно открутить ноги. Хорошая работа!' });
+    return s;
+  }
+
+  let W = null, wid = 0, steps = [], logSteps = [];
+  let log = {};
+  let st = { idx: 0, done: 0, since: null, extra: {}, spent: {} };
+
+  const $ = id => document.getElementById(id);
+  const fmt = sec => {
+    sec = Math.max(0, Math.ceil(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0');
+  };
+  const stepElapsed = () => st.done + (st.since ? (Date.now() - st.since) / 1000 : 0);
+  // planned length; an open-ended step counts the time actually spent on it
+  const durOf = i => steps[i].open
+    ? (i === st.idx ? stepElapsed() : (st.spent[i] || 0))
+    : steps[i].dur + (st.extra[i] || 0);
+  const plannedTotal = () => steps.reduce((a, s, i) => a + (s.open ? 0 : durOf(i)), 0);
+  const save = () => store.set('state', st);
+  const label = s => s.rep && s.kind !== 'rest' ? s.name + ' · ' + s.rep + '/' + s.reps : s.name;
+
+  // ---- sound ----
+  let ctx = null;
+  function beep(freq = 880, len = .12, vol = .25) {
+    if (!$('sound').checked) return;
+    try {
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + len);
+      o.connect(g).connect(ctx.destination);
+      o.start(); o.stop(ctx.currentTime + len);
+    } catch (e) {}
+  }
+  function say(text) {
+    if (!$('voice').checked || !('speechSynthesis' in window)) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ru-RU'; u.rate = 1.05;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  function fmtSpoken(sec) {
+    const m = Math.floor(sec / 60), r = sec % 60;
+    if (!m) return r + ' секунд';
+    return m + (m === 1 ? ' минута' : m < 5 ? ' минуты' : ' минут') + (r ? ' ' + r + ' секунд' : '');
+  }
+  function announce(i) {
+    const s = steps[i];
+    if (!s) return;
+    let t = s.name;
+    if (s.open) t = 'Переход. Нажми готов, когда восстановишься';
+    else if (s.kind === 'rest') t = s.name + ' ' + fmtSpoken(durOf(i));
+    else if (s.rep) t = s.name + ', ' + s.rep + ' из ' + s.reps + ', ' + durOf(i) + ' секунд';
+    say(t);
+  }
+
+  // ---- wake lock ----
+  let lock = null;
+  async function keepAwake(on) {
+    try {
+      if (on && 'wakeLock' in navigator && !lock) { lock = await navigator.wakeLock.request('screen'); lock.addEventListener('release', () => lock = null); }
+      if (!on && lock) { await lock.release(); lock = null; }
+    } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && st.since) keepAwake(true); });
+
+  // ---- results log ----
+  const FIELDS = ['lvl', 'c0', 'c1', 'peak', 'avg'];
+  const saveLog = () => store.set('log', log);
+  function setVal(id, f, v) {
+    log[id] = log[id] || {};
+    log[id][f] = v;
+    saveLog();
+    const t = $('t-' + id + '-' + f); if (t && t !== document.activeElement) t.value = v;
+    const c = $('f-' + f); if (c && c.dataset.id === id && c !== document.activeElement) c.value = v;
+  }
+  function renderResults() {
+    const tb = $('resBody');
+    tb.innerHTML = '';
+    let blk = '';
+    logSteps.forEach(s => {
+      if (s.name !== blk) {
+        blk = s.name;
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td class="blk" colspan="6">' + blk + '</td>';
+        tb.appendChild(tr);
+      }
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>№' + s.rep + '</td>' + FIELDS.map(f =>
+        '<td><input id="t-' + s.logId + '-' + f + '" type="number" inputmode="numeric" aria-label="' + s.name + ' ' + s.rep + ' ' + f + '"></td>').join('');
+      tb.appendChild(tr);
+      FIELDS.forEach(f => {
+        const inp = $('t-' + s.logId + '-' + f);
+        inp.value = (log[s.logId] || {})[f] || '';
+        inp.addEventListener('input', () => setVal(s.logId, f, inp.value));
+      });
+    });
+  }
+  FIELDS.forEach(f => $('f-' + f).addEventListener('input', e => {
+    const id = e.target.dataset.id; if (id) setVal(id, f, e.target.value);
+  }));
+  // the form in the card is for the work interval that just finished
+  function bindLogForm() {
+    const prev = steps[st.idx - 1];
+    const show = st.idx < steps.length + 1 && prev && prev.logId;
+    $('log').hidden = !show;
+    if (!show) { FIELDS.forEach(f => $('f-' + f).dataset.id = ''); return; }
+    $('logName').textContent = label(prev);
+    FIELDS.forEach(f => { const el = $('f-' + f); el.dataset.id = prev.logId; el.value = (log[prev.logId] || {})[f] || ''; });
+  }
+  function reportText() {
+    const d = new Date();
+    const lines = ['Тренировка №' + wid + ' (' + W.title + ') — ' + d.toLocaleDateString('ru-RU')];
+    let blk = '';
+    logSteps.forEach(s => {
+      const v = log[s.logId] || {};
+      if (!FIELDS.some(f => v[f])) return;
+      if (s.name !== blk) { blk = s.name; lines.push('', blk + ':'); }
+      const p = [];
+      if (v.lvl) p.push('ур. ' + v.lvl);
+      if (v.c0 || v.c1) p.push('каденс ' + (v.c0 || '?') + '→' + (v.c1 || '?'));
+      if (v.peak) p.push('пик ' + v.peak + ' Вт');
+      if (v.avg) p.push('ср. ' + v.avg + ' Вт');
+      lines.push('№' + s.rep + ': ' + p.join(', '));
+    });
+    if (lines.length === 1) lines.push('', 'Пока нет записей.');
+    return lines.join('\n');
+  }
+  $('copyBtn').addEventListener('click', () => {
+    const text = reportText();
+    const ta = $('report');
+    ta.value = text; ta.hidden = false;
+    const done = () => { $('copyBtn').textContent = 'Скопировано'; setTimeout(() => $('copyBtn').textContent = 'Скопировать отчёт', 2000); };
+    const fallback = () => { ta.focus(); ta.select(); $('copyBtn').textContent = 'Выдели текст ниже и скопируй'; };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+  });
+  let clearArmed = null;
+  $('clearBtn').addEventListener('click', () => {
+    if (clearArmed) {
+      clearTimeout(clearArmed); clearArmed = null; $('clearBtn').textContent = 'Очистить записи';
+      log = {}; saveLog(); renderResults(); bindLogForm(); $('report').hidden = true; return;
+    }
+    $('clearBtn').textContent = 'Точно очистить?';
+    clearArmed = setTimeout(() => { clearArmed = null; $('clearBtn').textContent = 'Очистить записи'; }, 3000);
+  });
+
+  // ---- render ----
+  function renderPlan() {
+    const plan = $('plan');
+    plan.innerHTML = '';
+    steps.forEach((s, i) => {
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="dot" style="background:' + COLORS[s.kind] + '"></span>' +
+        '<div class="t"><b>' + label(s) + '</b><span>' + s.rpm + ' · ' + s.watts + '</span></div>' +
+        '<div class="d">' + (s.open ? 'по готовности' : fmt(durOf(i))) + '</div>';
+      li.addEventListener('click', () => { jump(i); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+      plan.appendChild(li);
+    });
+    const pr = $('progress');
+    pr.innerHTML = '';
+    const tot = plannedTotal();
+    steps.forEach((s, i) => {
+      const sp = document.createElement('span');
+      sp.style.width = (s.open ? 0 : durOf(i) / tot * 100) + '%';
+      sp.style.background = COLORS[s.kind];
+      pr.appendChild(sp);
+    });
+    $('totalTime').textContent = '~' + fmt(plannedTotal());
+  }
+
+  let lastIdx = -1, lastSec = -1;
+  function render() {
+    const finished = st.idx >= steps.length;
+    const i = Math.min(st.idx, steps.length - 1);
+    const s = steps[i];
+    const open = !!s.open && !finished;
+    const d = durOf(i);
+    const el = finished ? d : open ? stepElapsed() : Math.min(stepElapsed(), d);
+    const left = open ? 0 : d - el;
+
+    document.documentElement.style.setProperty('--cur', COLORS[s.kind]);
+    $('kind').textContent = KIND_LABEL[s.kind];
+    $('stage').textContent = open ? 'Переход к следующему блоку' : s.name;
+    if (s.kind === 'rest' && s.rep) $('rep').innerHTML = 'после <b>' + s.rep + '</b> / ' + s.reps;
+    else if (s.rep) $('rep').innerHTML = 'повтор <b>' + s.rep + '</b> / ' + s.reps;
+    else $('rep').textContent = '';
+    $('clock').textContent = finished ? 'Готово' : open ? fmt(el) : fmt(left);
+    $('bar').style.width = open ? '100%' : (el / d * 100) + '%';
+    $('bar').style.opacity = open ? .25 : 1;
+    $('rpm').textContent = s.rpm;
+    $('watts').textContent = s.watts;
+    $('rpe').textContent = s.rpe;
+    $('gear').textContent = s.gear;
+    $('cue').textContent = s.cue || '';
+
+    const n = steps[i + 1];
+    if (n && !finished) {
+      $('nextDot').style.background = COLORS[n.kind];
+      $('nextName').textContent = label(n);
+      $('nextSub').textContent = n.rpm + ' · ' + n.watts + ' · ' + n.rpe;
+      $('nextDur').textContent = n.open ? '' : fmt(durOf(i + 1));
+    } else {
+      $('nextDot').style.background = 'var(--muted)';
+      $('nextName').textContent = finished ? 'Тренировка завершена' : 'Финиш';
+      $('nextSub').textContent = finished ? 'Скопируй отчёт ниже и отправь тренеру' : '';
+      $('nextDur').textContent = '';
+    }
+
+    let total = 0;
+    for (let k = 0; k < i; k++) total += durOf(k);
+    $('elapsed').textContent = fmt(total + el);
+
+    if (lastIdx !== st.idx) {
+      const prog = $('progress').children, items = $('plan').children;
+      for (let k = 0; k < prog.length; k++) {
+        const c = k < st.idx ? 'done' : k === st.idx ? 'now' : '';
+        prog[k].className = c; items[k].className = c;
+      }
+      bindLogForm();
+    }
+
+    $('playBtn').textContent = finished ? 'Заново'
+      : st.since ? (open ? 'Готов →' : 'Пауза')
+      : (stepElapsed() > 0 || st.idx > 0 ? 'Продолжить' : 'Старт');
+    document.body.classList.toggle('last3', !!st.since && !open && left <= 3.05 && left > 0);
+    document.title = finished ? 'Велотаймер' : (open ? 'Переход' : fmt(left) + ' · ' + s.name);
+
+    const secLeft = Math.ceil(left);
+    if (st.since && !open && lastIdx === st.idx && secLeft !== lastSec && secLeft >= 1 && secLeft <= 3) beep(660, .12);
+    lastSec = secLeft; lastIdx = st.idx;
+  }
+
+  function onStepChange(auto) {
+    document.body.classList.remove('flash'); void document.body.offsetWidth; document.body.classList.add('flash');
+    if (auto) { beep(1100, .35, .3); try { navigator.vibrate && navigator.vibrate([200, 80, 200]); } catch (e) {} }
+    if (st.idx < steps.length) announce(st.idx);
+  }
+
+  function finish() {
+    st.idx = steps.length; st.since = null; st.done = 0;
+    keepAwake(false); save(); say('Тренировка завершена'); beep(1320, .6);
+  }
+
+  function tick() {
+    if (st.since && st.idx < steps.length && !steps[st.idx].open) {
+      let changed = false;
+      while (st.idx < steps.length && !steps[st.idx].open && stepElapsed() >= durOf(st.idx)) {
+        const over = stepElapsed() - durOf(st.idx);
+        st.idx++; st.done = 0; st.since = Date.now() - over * 1000;
+        changed = true;
+      }
+      if (st.idx >= steps.length) finish();
+      else if (changed) { onStepChange(true); save(); }
+    }
+    render();
+  }
+
+  function advanceFromOpen() {
+    st.spent[st.idx] = Math.round(stepElapsed());
+    st.idx++; st.done = 0; st.since = Date.now();
+    save(); renderPlan(); lastIdx = -1; onStepChange(true); render();
+  }
+
+  function play() {
+    if (st.idx >= steps.length) { reset(); return; }
+    if (st.since && steps[st.idx].open) { advanceFromOpen(); return; }
+    if (st.since) { st.done = stepElapsed(); st.since = null; keepAwake(false); }
+    else {
+      const fresh = st.done === 0;
+      st.since = Date.now(); keepAwake(true); beep(880, .1, .01); // unlocks audio on iOS
+      if (fresh) announce(st.idx);
+    }
+    save(); render();
+  }
+  function jump(i) {
+    if (i < 0 || i >= steps.length) return;
+    const running = !!st.since || st.idx >= steps.length;
+    if (st.idx < steps.length && steps[st.idx].open) st.spent[st.idx] = Math.round(stepElapsed());
+    st.idx = i; st.done = 0; st.since = running ? Date.now() : null;
+    save(); renderPlan(); lastIdx = -1; onStepChange(false); render();
+  }
+  function reset() {
+    st = { idx: 0, done: 0, since: null, extra: {}, spent: {} };
+    keepAwake(false); save(); renderPlan(); lastIdx = -1; render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  $('playBtn').addEventListener('click', play);
+  $('prevBtn').addEventListener('click', () => {
+    // more than 3 s into a step restarts it; otherwise go to the previous one
+    if (st.idx < steps.length && stepElapsed() > 3) jump(st.idx); else jump(Math.min(st.idx, steps.length) - 1);
+  });
+  $('nextBtn').addEventListener('click', () => {
+    if (st.idx + 1 >= steps.length) { finish(); render(); return; }
+    jump(st.idx + 1);
+  });
+  $('plusBtn').addEventListener('click', () => {
+    if (st.idx >= steps.length || steps[st.idx].open) return;
+    st.extra[st.idx] = (st.extra[st.idx] || 0) + 30;
+    save(); renderPlan(); lastIdx = -1; render();
+  });
+  let resetArmed = null;
+  $('resetBtn').addEventListener('click', () => {
+    if (resetArmed) { clearTimeout(resetArmed); resetArmed = null; $('resetBtn').textContent = 'Сбросить'; reset(); return; }
+    $('resetBtn').textContent = 'Точно сбросить?';
+    resetArmed = setTimeout(() => { resetArmed = null; $('resetBtn').textContent = 'Сбросить'; }, 3000);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input,button,textarea')) return;
+    if (e.code === 'Space') { e.preventDefault(); play(); }
+    if (e.code === 'ArrowRight') $('nextBtn').click();
+    if (e.code === 'ArrowLeft') $('prevBtn').click();
+  });
+
+  ['sound', 'voice'].forEach(k => {
+    const v = prefs.get(k, store.get(k, null)); if (v !== null) $(k).checked = !!v;
+    $(k).addEventListener('change', () => prefs.set(k, $(k).checked));
+  });
+
+  // each workout keeps its own progress and results
+  function loadWorkout(id) {
+    if (W && st.since) { st.done = stepElapsed(); st.since = null; keepAwake(false); save(); }
+    wid = WORKOUTS[id] ? +id : 1;
+    W = WORKOUTS[wid];
+    PFX = 'velotimer' + wid + '.';
+    steps = build(W);
+    logSteps = steps.filter(s => s.logId);
+    log = store.get('log', {});
+    st = { idx: 0, done: 0, since: null, extra: {}, spent: {} };
+    const saved = store.get('state', null);
+    if (saved && saved.idx <= steps.length) st = Object.assign(st, saved);
+    prefs.set('workout', wid);
+    $('rules').innerHTML = W.rules;
+    document.querySelectorAll('#wsel button').forEach(b => b.classList.toggle('on', +b.dataset.w === wid));
+    $('report').hidden = true;
+    renderPlan(); renderResults(); lastIdx = -1; render();
+    if (st.since) keepAwake(true);
+  }
+  document.querySelectorAll('#wsel button').forEach(b => b.addEventListener('click', () => {
+    if (+b.dataset.w !== wid) loadWorkout(b.dataset.w);
+  }));
+
+  loadWorkout(prefs.get('workout', 1));
+  setInterval(tick, 200);
+})();
+</script>
+</body>
+</html>
